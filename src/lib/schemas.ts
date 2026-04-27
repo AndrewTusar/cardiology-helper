@@ -15,11 +15,13 @@ export const diagnosisFormSchema = z.object({
   maxDiastolic: z.number().min(60).max(200).optional(),
   
   complaints: z.array(z.string()),
+  anginaClass: z.enum(['none', 'I', 'II', 'III', 'IV']).default('none'),
 
   onTherapy: z.boolean(),
 
   smoking: z.boolean(),
   diabetes: z.boolean(),
+  diabetesType: z.enum(['unknown', '1', '2']).default('2'),
   dyslipidemia: z.boolean(),
   familyHistory: z.boolean(),
   miHistory: z.boolean(),
@@ -30,11 +32,21 @@ export const diagnosisFormSchema = z.object({
   ldlCholesterol: z.number().min(0.1).max(15).optional(),
   hdlCholesterol: z.number().min(0.1).max(4).optional(),
 
+  // Лабораторные показатели (опционально, для более точной формулировки и контроля целей)
+  fastingGlucose: z.number().min(1).max(40).optional(), // ммоль/л
+  hba1c: z.number().min(3).max(20).optional(), // %
+
   lvh: z.boolean(), // Left Ventricular Hypertrophy
   creatinine: z.number().min(20).max(2000).default(80),
   ckdAlbuminuria: z.string().default('none'),
   onDialysis: z.boolean().default(false),
   glucoseTolerance: z.boolean(),
+
+  // ССЗ и ПОМ (дополнительные уточняющие пункты)
+  atrialFibrillation: z.boolean().default(false),
+  strokeHistory: z.boolean().default(false),
+  peripheralArteryDisease: z.boolean().default(false),
+  hypertensiveRetinopathy: z.boolean().default(false),
   
   ejectionFraction: z.number().min(10).max(80).optional(),
   chfStage: z.string().optional().default('none'),

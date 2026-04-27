@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { diagnosisFormSchema, type DiagnosisFormValues } from '@/lib/schemas';
 import { generateDiagnosis, type DiagnosisResult as DiagnosisResultType } from '@/lib/diagnosis-logic';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -18,11 +18,12 @@ import { calculateBMI, getObesityStage, calculateGFR, getCKDStageFromGFR } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const steps = [
   { id: '01', title: 'Биометрия', fields: ['gender', 'age', 'height', 'weight', 'waist'] },
-  { id: '02', title: 'Жизненные показатели и жалобы', fields: ['systolic', 'diastolic', 'heartRate', 'complaints'] },
-  { id: '03', title: 'Факторы риска и анамнез', fields: ['onTherapy', 'maxSystolic', 'maxDiastolic', 'smoking', 'diabetes', 'dyslipidemia', 'totalCholesterol', 'triglycerides', 'ldlCholesterol', 'hdlCholesterol', 'familyHistory', 'miHistory', 'miYear'] },
+  { id: '02', title: 'Жизненные показатели и жалобы', fields: ['systolic', 'diastolic', 'heartRate', 'complaints', 'anginaClass'] },
+  { id: '03', title: 'Факторы риска и анамнез', fields: ['onTherapy', 'maxSystolic', 'maxDiastolic', 'smoking', 'diabetes', 'diabetesType', 'dyslipidemia', 'totalCholesterol', 'triglycerides', 'ldlCholesterol', 'hdlCholesterol', 'familyHistory', 'miHistory', 'miYear'] },
   { id: '04', title: 'Осложнения и сопутствующие заболевания', fields: ['lvh', 'creatinine', 'ckdAlbuminuria', 'onDialysis', 'glucoseTolerance', 'ejectionFraction', 'chfStage', 'chfNYHA'] },
 ];
 
@@ -46,6 +47,10 @@ const riskFactorOptions = [
 const complicationOptions = [
     { id: 'lvh', label: 'ГЛЖ (гипертрофия левого желудочка)' },
     { id: 'glucoseTolerance', label: 'Нарушение толерантности к глюкозе' },
+    { id: 'atrialFibrillation', label: 'Фибрилляция предсердий' },
+    { id: 'strokeHistory', label: 'Инсульт/ТИА в анамнезе' },
+    { id: 'peripheralArteryDisease', label: 'Заболевание периферических артерий (ЗПА)' },
+    { id: 'hypertensiveRetinopathy', label: 'Гипертоническая ретинопатия' },
 ];
 
 const ckdAlbuminuriaOptions = [
@@ -71,6 +76,14 @@ const chfNyhaOptions = [
     { value: 'IV', label: 'ФК IV' },
 ];
 
+const anginaClassOptions = [
+    { value: 'none', label: 'Не указано' },
+    { value: 'I', label: 'I ФК' },
+    { value: 'II', label: 'II ФК' },
+    { value: 'III', label: 'III ФК' },
+    { value: 'IV', label: 'IV ФК' },
+];
+
 
 export function DiagnosticWizard() {
   const [currentStep, setCurrentStep] = useState(0);
@@ -90,14 +103,18 @@ export function DiagnosticWizard() {
       maxSystolic: 140,
       maxDiastolic: 90,
       complaints: [],
+      anginaClass: 'none',
       onTherapy: false,
       smoking: false,
       diabetes: false,
+      diabetesType: '2',
       dyslipidemia: false,
       totalCholesterol: 5.0,
       triglycerides: 1.7,
       ldlCholesterol: 3.0,
       hdlCholesterol: 1.2,
+      fastingGlucose: undefined,
+      hba1c: undefined,
       familyHistory: false,
       miHistory: false,
       miYear: new Date().getFullYear(),
@@ -106,6 +123,10 @@ export function DiagnosticWizard() {
       ckdAlbuminuria: 'none',
       onDialysis: false,
       glucoseTolerance: false,
+      atrialFibrillation: false,
+      strokeHistory: false,
+      peripheralArteryDisease: false,
+      hypertensiveRetinopathy: false,
       ejectionFraction: 55,
       chfStage: 'none',
       chfNYHA: 'none',
@@ -120,6 +141,8 @@ export function DiagnosticWizard() {
   const dyslipidemia = watch('dyslipidemia');
   const complaints = watch('complaints');
   const showChfFields = complaints.includes('shortnessOfBreath');
+  const showAnginaClassField = complaints.includes('chestPain');
+  const diabetes = watch('diabetes');
 
   const age = watch('age');
   const gender = watch('gender');
@@ -335,6 +358,57 @@ export function DiagnosticWizard() {
                         </FormItem>
                     )}
                 />
+                {showAnginaClassField && (
+                  <>
+                    <Separator />
+                    <FormField
+                      control={form.control}
+                      name="anginaClass"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center gap-2">
+                            <FormLabel>Функциональный класс стенокардии</FormLabel>
+                            <Popover>
+                              <PopoverTrigger
+                                className={cn(
+                                  buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                  'h-5 w-5'
+                                )}
+                                aria-label="Справка по ФК стенокардии"
+                              >
+                                <Info className="h-4 w-4" />
+                              </PopoverTrigger>
+                              <PopoverContent className="w-80">
+                                <div className="space-y-2 text-sm">
+                                  <p className="font-medium">Оценка ФК стенокардии (кратко)</p>
+                                  <p><strong>I ФК:</strong> приступы только при очень интенсивной/длительной нагрузке.</p>
+                                  <p><strong>II ФК:</strong> небольшое ограничение: приступ при быстрой ходьбе/подъеме по лестнице, на холоде/ветре, после еды, при эмоциях; обычно — ходьба &gt;200 м или &gt;1 пролёта.</p>
+                                  <p><strong>III ФК:</strong> выраженное ограничение: приступ при ходьбе 100–200 м или подъеме на 1 пролёт в обычном темпе.</p>
+                                  <p><strong>IV ФК:</strong> симптомы при минимальной нагрузке или в покое; невозможность обычной активности без дискомфорта.</p>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {anginaClassOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
               </section>
             )}
 
@@ -409,6 +483,32 @@ export function DiagnosticWizard() {
                                  </FormItem>
                              )}
                          />
+                         {item.id === 'diabetes' && diabetes && (
+                           <div className="space-y-2 pt-3 pl-6 border-l-2 ml-3">
+                             <FormField
+                               control={form.control}
+                               name="diabetesType"
+                               render={({ field }) => (
+                                 <FormItem>
+                                   <FormLabel>Тип сахарного диабета</FormLabel>
+                                   <Select value={field.value} onValueChange={field.onChange}>
+                                     <FormControl>
+                                       <SelectTrigger>
+                                         <SelectValue />
+                                       </SelectTrigger>
+                                     </FormControl>
+                                     <SelectContent>
+                                       <SelectItem value="2">2 тип</SelectItem>
+                                       <SelectItem value="1">1 тип</SelectItem>
+                                       <SelectItem value="unknown">Не уточнен</SelectItem>
+                                     </SelectContent>
+                                   </Select>
+                                   <FormMessage />
+                                 </FormItem>
+                               )}
+                             />
+                           </div>
+                         )}
                          {item.id === 'dyslipidemia' && dyslipidemia && (
                             <div className="space-y-4 pt-4 pl-6 border-l-2 ml-3">
                                 <p className="text-sm font-medium">Липидный профиль (ммоль/л)</p>
@@ -484,6 +584,57 @@ export function DiagnosticWizard() {
                          )}
                      </Fragment>
                  ))}
+
+                 <Separator />
+                 <FormLabel className="text-base">Лабораторные показатели (если доступны)</FormLabel>
+                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                   <FormField
+                     control={form.control}
+                     name="fastingGlucose"
+                     render={({ field }) => (
+                       <FormItem>
+                         <FormLabel>Глюкоза натощак (ммоль/л)</FormLabel>
+                         <FormControl>
+                           <input
+                             type="number"
+                             step="0.1"
+                             min={1}
+                             max={40}
+                             value={field.value ?? ''}
+                             onChange={(e) =>
+                               field.onChange(e.target.value === '' ? undefined : Number(e.target.value))
+                             }
+                             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                           />
+                         </FormControl>
+                         <FormMessage />
+                       </FormItem>
+                     )}
+                   />
+                   <FormField
+                     control={form.control}
+                     name="hba1c"
+                     render={({ field }) => (
+                       <FormItem>
+                         <FormLabel>HbA1c (%)</FormLabel>
+                         <FormControl>
+                           <input
+                             type="number"
+                             step="0.1"
+                             min={3}
+                             max={20}
+                             value={field.value ?? ''}
+                             onChange={(e) =>
+                               field.onChange(e.target.value === '' ? undefined : Number(e.target.value))
+                             }
+                             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                           />
+                         </FormControl>
+                         <FormMessage />
+                       </FormItem>
+                     )}
+                   />
+                 </div>
               </section>
             )}
 
@@ -531,7 +682,7 @@ export function DiagnosticWizard() {
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Уровень альбуминурии</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select value={field.value} onValueChange={field.onChange}>
                                     <FormControl>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                     </FormControl>
@@ -588,10 +739,14 @@ export function DiagnosticWizard() {
                                         <div className="flex items-center gap-2">
                                             <FormLabel>Стадия ХСН (по Василенко-Стражеско)</FormLabel>
                                             <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-5 w-5">
-                                                        <Info className="h-4 w-4" />
-                                                    </Button>
+                                                <PopoverTrigger
+                                                  className={cn(
+                                                    buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                                    'h-5 w-5'
+                                                  )}
+                                                  aria-label="Справка по стадиям ХСН"
+                                                >
+                                                  <Info className="h-4 w-4" />
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-80">
                                                     <div className="space-y-2 text-sm">
@@ -604,6 +759,7 @@ export function DiagnosticWizard() {
                                             </Popover>
                                         </div>
                                         <Select 
+                                            value={field.value}
                                             onValueChange={(value) => {
                                                 field.onChange(value);
                                                 const currentNyha = form.getValues('chfNYHA');
@@ -617,7 +773,6 @@ export function DiagnosticWizard() {
                                                     form.setValue('chfNYHA', 'IV');
                                                 }
                                             }} 
-                                            defaultValue={field.value}
                                         >
                                             <FormControl>
                                                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -640,10 +795,14 @@ export function DiagnosticWizard() {
                                         <div className="flex items-center gap-2">
                                             <FormLabel>Функциональный класс (по NYHA)</FormLabel>
                                             <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-5 w-5">
-                                                        <Info className="h-4 w-4" />
-                                                    </Button>
+                                                <PopoverTrigger
+                                                  className={cn(
+                                                    buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                                    'h-5 w-5'
+                                                  )}
+                                                  aria-label="Справка по функциональным классам NYHA"
+                                                >
+                                                  <Info className="h-4 w-4" />
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-80">
                                                     <div className="space-y-2 text-sm">
@@ -656,6 +815,7 @@ export function DiagnosticWizard() {
                                             </Popover>
                                         </div>
                                         <Select 
+                                            value={field.value}
                                             onValueChange={(value) => {
                                                 field.onChange(value);
                                                 const currentStage = form.getValues('chfStage');
@@ -669,7 +829,6 @@ export function DiagnosticWizard() {
                                                     form.setValue('chfStage', 'III');
                                                 }
                                             }} 
-                                            defaultValue={field.value}
                                         >
                                             <FormControl>
                                                 <SelectTrigger><SelectValue /></SelectTrigger>

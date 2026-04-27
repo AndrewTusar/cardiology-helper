@@ -7,6 +7,35 @@ export interface DiagnosisResult {
   hypertensionGrade: string;
   risk: string;
   comorbidities: string[];
+  targets?: TargetLevels;
+  sections?: DiagnosisSections;
+  copyText?: string;
+}
+
+export interface DiagnosisSections {
+  primary: string[];
+  background: string[];
+  complications: string[];
+  comorbidities: string[];
+  targets: string[];
+}
+
+export interface TargetLevels {
+  ldl: {
+    target: string;
+    note?: string;
+  };
+  bloodPressure: {
+    target: string;
+    diagnosis?: string;
+    note?: string;
+  };
+  glucose: {
+    target: string;
+    diagnosis?: string;
+    note?: string;
+  };
+  adjustedBy?: string[];
 }
 
 export const calculateBMI = (height: number, weight: number): number => {
@@ -71,27 +100,48 @@ const getMetabolicPhenotype = (data: DiagnosisFormValues, bmi: number): string =
 };
 
 const getHypertensionStageAndGrade = (data: DiagnosisFormValues, gfr: number): { stage: string, grade: string } => {
-    const { systolic, diastolic, miHistory, diabetes, lvh, onTherapy, maxSystolic, maxDiastolic, height, weight } = data;
+    const {
+        systolic,
+        diastolic,
+        miHistory,
+        strokeHistory,
+        peripheralArteryDisease,
+        diabetes,
+        lvh,
+        hypertensiveRetinopathy,
+        onTherapy,
+        maxSystolic,
+        maxDiastolic,
+        height,
+        weight,
+    } = data;
     
     const diagnosticSystolic = onTherapy && maxSystolic ? maxSystolic : systolic;
     const diagnosticDiastolic = onTherapy && maxDiastolic ? maxDiastolic : diastolic;
 
+    // РФ рекомендации: степень АГ указывается при впервые диагностированной АГ.
+    // Если пациент на терапии — отражаем контроль АД (контролируемая/неконтролируемая АГ).
     let grade = 'Степень АГ 0';
-    if (diagnosticSystolic >= 180 || diagnosticDiastolic >= 110) {
-        grade = 'Степень АГ III';
-    } else if (diagnosticSystolic >= 160 || diagnosticDiastolic >= 100) {
-        grade = 'Степень АГ II';
-    } else if (diagnosticSystolic >= 140 || diagnosticDiastolic >= 90) {
-        grade = 'Степень АГ I';
+    if (onTherapy) {
+        const isControlledNow = systolic < 140 && diastolic < 90;
+        grade = isControlledNow ? 'Контролируемая АГ' : 'Неконтролируемая АГ';
+    } else {
+        if (diagnosticSystolic >= 180 || diagnosticDiastolic >= 110) {
+            grade = 'Степень АГ 3';
+        } else if (diagnosticSystolic >= 160 || diagnosticDiastolic >= 100) {
+            grade = 'Степень АГ 2';
+        } else if (diagnosticSystolic >= 140 || diagnosticDiastolic >= 90) {
+            grade = 'Степень АГ 1';
+        }
     }
     
     const bmi = calculateBMI(height, weight);
     const isObesityStage3 = bmi >= 40;
 
-    const hasEstablishedCVD = miHistory;
+    const hasEstablishedCVD = miHistory || strokeHistory || peripheralArteryDisease;
     const ckdIsSevere = gfr < 60;
     const hasSevereComorbidity = diabetes || ckdIsSevere;
-    const hasTargetOrganDamage = lvh || isObesityStage3;
+    const hasTargetOrganDamage = lvh || hypertensiveRetinopathy || isObesityStage3;
 
     let stage = 'I стадии';
     if (hasEstablishedCVD || hasSevereComorbidity) {
@@ -111,7 +161,7 @@ const calculateCardiovascularRisk = (data: DiagnosisFormValues, stage: string): 
     if (stage === 'III стадии') return 'Риск 4 (очень высокий)';
 
     let points = 0;
-    const { age, gender, smoking, systolic, dyslipidemia, diabetes, height, weight } = data;
+    const { age, gender, smoking, systolic, dyslipidemia, diabetes, familyHistory, height, weight } = data;
     
     const bmi = calculateBMI(height, weight);
     if (bmi >= 30) {
@@ -130,6 +180,9 @@ const calculateCardiovascularRisk = (data: DiagnosisFormValues, stage: string): 
     if (diabetes) {
         points += 1;
     }
+    if (familyHistory) {
+        points += 1;
+    }
     if (systolic >= 160) points += 1;
     if (stage === 'II стадии') {
         points += 1;
@@ -138,6 +191,143 @@ const calculateCardiovascularRisk = (data: DiagnosisFormValues, stage: string): 
     if (points >= 3) return 'Риск 3 (высокий)';
     if (points >= 1) return 'Риск 2 (средний)';
     return 'Риск 1 (низкий)';
+};
+
+const parseRiskLevel = (risk: string): 1 | 2 | 3 | 4 | null => {
+    const match = risk.match(/Риск\s+([1-4])/);
+    if (!match) return null;
+    const level = Number(match[1]);
+    if (level === 1 || level === 2 || level === 3 || level === 4) return level;
+    return null;
+};
+
+const getTargetsForPatient = (data: DiagnosisFormValues, risk: string): TargetLevels => {
+    const declaredLevel = parseRiskLevel(risk);
+
+    // Усиление строгости целей для “особых групп”, даже если скоринг риска дал ниже.
+    // Это не меняет рассчитанный risk, только подбирает более уместные цели.
+    const { miHistory, strokeHistory, peripheralArteryDisease, diabetes, creatinine, ckdAlbuminuria, onDialysis, chfStage, chfNYHA } = data;
+
+    const gfr = calculateGFR(data.age, data.gender, creatinine || 80);
+    const hasCKD = gfr < 60 || (ckdAlbuminuria && ckdAlbuminuria !== 'none') || !!onDialysis;
+    const ckdSevere = onDialysis || gfr < 30 || ckdAlbuminuria === 'A3';
+
+    const hasCHF =
+        (chfStage && chfStage !== 'none') ||
+        (chfNYHA && chfNYHA !== 'none');
+    const chfSevere = chfNYHA === 'III' || chfNYHA === 'IV' || chfStage === 'III';
+
+    let elevatedLevel: 1 | 2 | 3 | 4 | null = declaredLevel;
+    const adjustedBy: string[] = [];
+    const bumpTo = (lvl: 3 | 4) => {
+        if (elevatedLevel === null) {
+            elevatedLevel = lvl;
+            return;
+        }
+        elevatedLevel = (Math.max(elevatedLevel, lvl) as 1 | 2 | 3 | 4);
+    };
+
+    if (miHistory) {
+        bumpTo(4);
+        adjustedBy.push('перенесённый ИМ');
+    }
+    if (strokeHistory) {
+        bumpTo(4);
+        adjustedBy.push('инсульт/ТИА в анамнезе');
+    }
+    if (peripheralArteryDisease) {
+        bumpTo(4);
+        adjustedBy.push('заболевание периферических артерий');
+    }
+    if (ckdSevere) {
+        bumpTo(4);
+        adjustedBy.push('тяжёлая ХБП (СКФ < 30 / A3 / диализ)');
+    }
+    if (chfSevere) {
+        bumpTo(4);
+        adjustedBy.push('тяжёлая ХСН (NYHA III–IV / стадия III)');
+    }
+
+    if (diabetes) {
+        bumpTo(3);
+        adjustedBy.push('сахарный диабет');
+    }
+    if (hasCKD && !ckdSevere) {
+        bumpTo(3);
+        adjustedBy.push('ХБП');
+    }
+    if (hasCHF && !chfSevere) {
+        bumpTo(3);
+        adjustedBy.push('ХСН');
+    }
+
+    const level = elevatedLevel;
+
+    // Липиды (ЛПНП, ммоль/л): ориентиры, используемые в клинической практике РФ для стратификации риска.
+    const ldl =
+        level === 4
+            ? { target: '< 1.4 ммоль/л', note: 'и снижение ≥50% от исходного (если возможно)' }
+            : level === 3
+              ? { target: '< 1.8 ммоль/л', note: 'и снижение ≥50% от исходного (если возможно)' }
+              : level === 2
+                ? { target: '< 2.6 ммоль/л' }
+                : { target: '< 3.0 ммоль/л' };
+
+    // Артериальное давление: базовая цель <140/90; при высоком/очень высоком риске — более строгая цель при переносимости.
+    const bloodPressure =
+        level === 4
+            ? {
+                  target: '130–139/<80 мм рт. ст.',
+                  diagnosis: '130–139/<80 мм рт. ст.',
+                  note: 'если переносится; иначе <140/<90',
+              }
+            : level === 3
+              ? {
+                    target: '< 130/80 мм рт. ст.',
+                    diagnosis: '<130/<80 мм рт. ст.',
+                    note: 'если переносится; иначе <140/<90',
+                }
+              : {
+                    target: '< 140/90 мм рт. ст.',
+                    diagnosis: '<140/<90 мм рт. ст.',
+                };
+
+    // Глюкоза: приложение не собирает лабораторные значения, поэтому выводим клинические ориентиры.
+    // Для РФ более привычные пороги: HbA1c ~ <6.0% как "норма", глюкоза натощак <6.1 ммоль/л.
+    const glucose = data.diabetes
+        ? {
+              target: 'HbA1c ≤ 7.5%',
+              diagnosis: 'целевой уровень гликированного гемоглобина ≤7,5%',
+              note: 'индивидуализировать; глюкоза натощак 4.4–7.2 ммоль/л',
+          }
+        : data.glucoseTolerance
+          ? { target: 'HbA1c < 6.0%', note: 'глюкоза натощак < 6.1 ммоль/л (если достижимо)' }
+          : { target: 'HbA1c < 6.0%', note: 'глюкоза натощак < 6.1 ммоль/л' };
+
+    return { ldl, bloodPressure, glucose, adjustedBy: adjustedBy.length > 0 ? adjustedBy : undefined };
+};
+
+const formatTargetsForDiagnosis = (targets: TargetLevels): string => {
+    // Форматируем как отдельный элемент диагноза, чтобы врач мог копировать целиком.
+    const bp = targets.bloodPressure.diagnosis || targets.bloodPressure.target;
+    return `Целевое АД ${bp}.`;
+};
+
+const sentence = (text: string): string => {
+    const t = text.trim();
+    if (!t) return '';
+    if (/[.!?]$/.test(t)) return t;
+    return `${t}.`;
+};
+
+const buildCopyText = (sections: DiagnosisSections): string => {
+    const lines: string[] = [];
+    if (sections.primary.length > 0) lines.push(`Основное заболевание: ${sections.primary.join(' ')}`);
+    if (sections.background.length > 0) lines.push(`Фоновое заболевание: ${sections.background.join(' ')}`);
+    if (sections.complications.length > 0) lines.push(`Осложнения: ${sections.complications.join(' ')}`);
+    if (sections.comorbidities.length > 0) lines.push(`Сопутствующие: ${sections.comorbidities.join(' ')}`);
+    if (sections.targets.length > 0) lines.push(`Цели: ${sections.targets.join(' ')}`);
+    return lines.join('\n');
 };
 
 const getEjectionFractionClassification = (ef: number): string => {
@@ -176,7 +366,28 @@ const getDyslipidemiaPhenotype = (data: DiagnosisFormValues): string => {
 
 
 export const generateDiagnosis = (data: DiagnosisFormValues): DiagnosisResult => {
-    const { complaints, miHistory, miYear, dyslipidemia, glucoseTolerance, creatinine, ckdAlbuminuria, onTherapy, ejectionFraction, chfStage, chfNYHA, onDialysis, lvh } = data;
+    const {
+        complaints,
+        anginaClass,
+        miHistory,
+        miYear,
+        dyslipidemia,
+        glucoseTolerance,
+        creatinine,
+        ckdAlbuminuria,
+        onTherapy,
+        ejectionFraction,
+        chfStage,
+        chfNYHA,
+        onDialysis,
+        lvh,
+        atrialFibrillation,
+        strokeHistory,
+        peripheralArteryDisease,
+        hypertensiveRetinopathy,
+        fastingGlucose,
+        hba1c,
+    } = data;
     
     const bmi = calculateBMI(data.height, data.weight);
     const obesityStage = getObesityStage(bmi);
@@ -191,6 +402,15 @@ export const generateDiagnosis = (data: DiagnosisFormValues): DiagnosisResult =>
     const isHypertensive = stage !== '0 стадии';
 
     const risk = isHypertensive ? calculateCardiovascularRisk(data, stage) : 'Нет';
+    const targets = isHypertensive ? getTargetsForPatient(data, risk) : undefined;
+
+    const sections: DiagnosisSections = {
+        primary: [],
+        background: [],
+        complications: [],
+        comorbidities: [],
+        targets: [],
+    };
 
     const comorbidities: string[] = [];
     if (obesityStage.includes('Ожирение')) {
@@ -207,9 +427,39 @@ export const generateDiagnosis = (data: DiagnosisFormValues): DiagnosisResult =>
     }
     
     if (data.diabetes) {
-        comorbidities.push('Сахарный диабет 2-го типа');
+        const diabetesLabel =
+            data.diabetesType === '1'
+                ? 'Сахарный диабет 1-го типа'
+                : data.diabetesType === 'unknown'
+                  ? 'Сахарный диабет (тип не уточнен)'
+                  : 'Сахарный диабет 2-го типа';
+
+        if (targets?.glucose?.diagnosis) {
+            comorbidities.push(`${diabetesLabel}, ${targets.glucose.diagnosis}`);
+        } else {
+            comorbidities.push(diabetesLabel);
+        }
+        if (typeof hba1c === 'number') {
+            comorbidities.push(`HbA1c ${hba1c.toFixed(1)}%`);
+        }
+        if (typeof fastingGlucose === 'number') {
+            comorbidities.push(`Глюкоза натощак ${fastingGlucose.toFixed(1)} ммоль/л`);
+        }
     } else if (glucoseTolerance) {
         comorbidities.push('Нарушение толерантности к глюкозе');
+        if (typeof hba1c === 'number') {
+            comorbidities.push(`HbA1c ${hba1c.toFixed(1)}%`);
+        }
+        if (typeof fastingGlucose === 'number') {
+            comorbidities.push(`Глюкоза натощак ${fastingGlucose.toFixed(1)} ммоль/л`);
+        }
+    } else {
+        if (typeof hba1c === 'number') {
+            comorbidities.push(`HbA1c ${hba1c.toFixed(1)}%`);
+        }
+        if (typeof fastingGlucose === 'number') {
+            comorbidities.push(`Глюкоза натощак ${fastingGlucose.toFixed(1)} ммоль/л`);
+        }
     }
 
     const hasCKD = gfr < 60 || (ckdAlbuminuria && ckdAlbuminuria !== 'none');
@@ -219,50 +469,52 @@ export const generateDiagnosis = (data: DiagnosisFormValues): DiagnosisResult =>
         if (ckdAlbuminuria && ckdAlbuminuria !== 'none') {
             ckdString += ` ${ckdAlbuminuria}`;
         }
-        comorbidities.push(ckdString);
+        sections.complications.push(sentence(ckdString));
         if (ckdStage === 'C5' && onDialysis) {
-            comorbidities.push('ЗПТ (гемодиализ)');
+            sections.complications.push(sentence('ЗПТ (гемодиализ)'));
         }
     }
-    if (lvh) comorbidities.push('ГЛЖ');
+    if (lvh) sections.complications.push(sentence('ГЛЖ'));
+    if (hypertensiveRetinopathy) sections.complications.push(sentence('Гипертоническая ретинопатия'));
+    if (atrialFibrillation) sections.complications.push(sentence('Фибрилляция предсердий'));
+    if (strokeHistory) sections.complications.push(sentence('Инсульт/ТИА в анамнезе'));
+    if (peripheralArteryDisease) sections.complications.push(sentence('Заболевание периферических артерий (ЗПА)'));
 
     if (chfStage && chfStage !== 'none' && chfNYHA && chfNYHA !== 'none') {
         let chfString = `ХСН ${chfStage} стадии, ФК ${chfNYHA}`;
         if (ejectionFraction) {
             chfString += ` ${getEjectionFractionClassification(ejectionFraction)} (ФВ ${ejectionFraction}%)`;
         }
-        comorbidities.push(chfString);
-    }
-
-    let diagnosisParts: string[] = [];
-    if (isIBS) {
-        diagnosisParts.push('ИБС.');
-        if (complaints.includes('chestPain')) {
-            diagnosisParts.push('Стенокардия напряжения.');
-        }
-        if (miHistory) {
-            let miString = 'Перенесенный ИМ.';
-            if (miYear) {
-                miString = `Перенесенный ИМ (${miYear}).`;
-            }
-            diagnosisParts.push(miString);
-        }
+        sections.complications.push(sentence(chfString));
     }
 
     let baseDiagnosis = 'Нет';
+    const hypertensionPhraseParts: string[] = [];
     if (isHypertensive) {
-        baseDiagnosis = 'Гипертоническая болезнь';
-        diagnosisParts.push(`${baseDiagnosis} ${stage}.`);
-
-        if (grade !== 'Степень АГ 0') {
-            diagnosisParts.push(`${grade}.`);
-        }
-        
-        diagnosisParts.push(`${risk}.`);
+        hypertensionPhraseParts.push(sentence(`ГБ ${stage}`));
+        if (grade !== 'Степень АГ 0') hypertensionPhraseParts.push(sentence(grade));
+        hypertensionPhraseParts.push(sentence(risk));
+        if (targets) sections.targets.push(sentence(formatTargetsForDiagnosis(targets)));
     }
 
     if (isIBS) {
         baseDiagnosis = 'ИБС';
+        sections.primary.push(sentence('ИБС'));
+        if (complaints.includes('chestPain')) {
+            const klass = anginaClass && anginaClass !== 'none' ? ` ${anginaClass} ФК` : '';
+            sections.primary.push(sentence(`Стенокардия напряжения${klass}`));
+        }
+        if (miHistory) {
+            const miString = miYear ? `Постинфарктный кардиосклероз (${miYear}г)` : 'Постинфарктный кардиосклероз';
+            sections.primary.push(sentence(miString));
+        }
+        if (hypertensionPhraseParts.length > 0) sections.background.push(...hypertensionPhraseParts);
+    } else if (isHypertensive) {
+        baseDiagnosis = 'ГБ';
+        sections.primary.push(...hypertensionPhraseParts);
+    } else {
+        baseDiagnosis = 'Нет';
+        sections.primary.push(sentence('Здоров(а)'));
     }
     
     let finalComorbidities = [...comorbidities];
@@ -271,15 +523,19 @@ export const generateDiagnosis = (data: DiagnosisFormValues): DiagnosisResult =>
     }
 
     if (finalComorbidities.length > 0) {
-        diagnosisParts.push(...finalComorbidities.filter(c => c).map(c => `${c}.`));
+        sections.comorbidities.push(...finalComorbidities.filter(c => c).map(c => sentence(c)));
     }
 
-    if (diagnosisParts.length === 0) {
-        diagnosisParts.push('Здоров(а).');
-    }
+    const flatParts = [
+        ...sections.primary,
+        ...sections.background,
+        ...sections.complications,
+        ...sections.comorbidities,
+        ...sections.targets,
+    ].filter(Boolean);
 
-    const fullDiagnosis = diagnosisParts.join(' ');
-    const isTotallyHealthy = fullDiagnosis === 'Здоров(а).';
+    const fullDiagnosis = flatParts.join(' ');
+    const isTotallyHealthy = sections.primary.join(' ').includes('Здоров(а)');
     
     return {
         fullDiagnosis,
@@ -288,5 +544,8 @@ export const generateDiagnosis = (data: DiagnosisFormValues): DiagnosisResult =>
         hypertensionGrade: isHypertensive ? grade : 'Нет',
         risk: risk,
         comorbidities: finalComorbidities,
+        targets,
+        sections,
+        copyText: buildCopyText(sections),
     };
 };

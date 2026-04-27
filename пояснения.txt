@@ -1,0 +1,14 @@
+Как запустить локально
+Dev-сервер:
+npm run dev
+Он у вас поднимется на http://localhost:9002 (это задано в package.json).
+
+Как собрать и задеплоить на Firebase
+Собрать статическую версию в out/:
+npm run build
+Задеплоить хостинг:
+npx firebase deploy --only hosting
+Где править “мастера”
+UI шагов/поля формы: src/components/diagnostic-wizard.tsx
+Логика расчётов/формулировка диагноза: src/lib/diagnosis-logic.ts
+Валидация полей: src/lib/schemas.ts
