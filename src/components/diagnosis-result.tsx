@@ -129,6 +129,21 @@ export function DiagnosisResult({ diagnosis, onReset }: DiagnosisResultProps) {
                   </p>
                 )}
                 <p><strong>Отказ от ответственности:</strong> Этот инструмент предназначен для помощи медицинским работникам и не заменяет клиническое суждение. Все диагнозы должны быть подтверждены квалифицированным врачом.</p>
+                
+                <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between gap-4">
+                  <p className="text-[11px] leading-relaxed">
+                    Есть идеи по улучшению или нашли неточность? <br />
+                    Поделитесь в нашем сообществе врачей.
+                  </p>
+                  <a 
+                    href="https://t.me/+SnNIuiZBnDE4ZTdi" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="shrink-0 px-3 py-1.5 bg-[#229ED9] text-white rounded-md hover:bg-[#1c84b5] transition-colors text-[10px] font-bold flex items-center gap-1.5"
+                  >
+                    В ТЕЛЕГРАМ
+                  </a>
+                </div>
             </div>
 
             <Button onClick={onReset} className="w-full mt-4">
