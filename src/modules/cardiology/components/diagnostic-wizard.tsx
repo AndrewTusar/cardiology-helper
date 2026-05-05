@@ -3,8 +3,8 @@
 import { useState, Fragment } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { diagnosisFormSchema, type DiagnosisFormValues } from '@/lib/schemas';
-import { generateDiagnosis, type DiagnosisResult as DiagnosisResultType } from '@/lib/diagnosis-logic';
+import { diagnosisFormSchema, type DiagnosisFormValues } from '../lib/schemas';
+import { generateDiagnosis, type DiagnosisResult as DiagnosisResultType } from '../lib/logic';
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,8 +14,8 @@ import { Slider } from '@/components/ui/slider';
 import { AdaptiveSlider } from '@/components/ui/adaptive-slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { DiagnosisResult } from '@/components/diagnosis-result';
-import { calculateBMI, getObesityStage, calculateGFR, getCKDStageFromGFR } from '@/lib/diagnosis-logic';
+import { DiagnosisResult } from './diagnosis-result';
+import { calculateBMI, getObesityStage, calculateGFR, getCKDStageFromGFR } from '../lib/logic';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Info } from 'lucide-react';

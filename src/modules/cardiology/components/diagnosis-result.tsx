@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import type { DiagnosisResult as DiagnosisResultType } from "@/lib/diagnosis-logic";
+import type { DiagnosisResult as DiagnosisResultType } from "../lib/logic";
 
 interface DiagnosisResultProps {
   diagnosis: DiagnosisResultType;

@@ -1,14 +1,52 @@
-import { DiagnosticWizard } from '@/components/diagnostic-wizard';
+"use client";
+
+import { useState } from 'react';
+import { DiagnosticWizard as CardiologyWizard } from '@/modules/cardiology/components/diagnostic-wizard';
+import { SpecialtySelector } from '@/components/specialty-selector';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft } from 'lucide-react';
 
 export default function Home() {
+  const [activeModule, setActiveModule] = useState<string | null>(null);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-12 bg-slate-50/50">
       <div className="w-full max-w-2xl space-y-6">
-        <DiagnosticWizard />
+        {!activeModule ? (
+          <>
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
+                Медицинский Помощник
+              </h1>
+              <p className="text-slate-500 text-lg">
+                Выберите направление для работы с пациентом
+              </p>
+            </div>
+            <SpecialtySelector onSelect={setActiveModule} />
+          </>
+        ) : (
+          <div className="space-y-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => setActiveModule(null)}
+              className="group text-slate-500 hover:text-slate-900"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" />
+              Вернуться в меню
+            </Button>
+            
+            {activeModule === 'cardiology' && <CardiologyWizard />}
+            {activeModule === 'pulmonology' && (
+              <div className="text-center p-12 bg-white rounded-xl border border-dashed border-slate-300">
+                Модуль пульмонологии находится в разработке
+              </div>
+            )}
+          </div>
+        )}
         
-        <footer className="text-center space-y-3 pt-4">
+        <footer className="text-center space-y-3 pt-8">
           <p className="text-sm text-muted-foreground font-medium">
-            Разработано для врачей-терапевтов и кардиологов
+            Разработано для врачей-терапевтов и профильных специалистов
           </p>
           <div className="flex flex-col items-center gap-2">
             <a 
@@ -23,7 +61,7 @@ export default function Home() {
               Обсудить и предложить идею
             </a>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-              Cardiology Helper • Community
+              Medical Helper • Community
             </p>
           </div>
         </footer>
