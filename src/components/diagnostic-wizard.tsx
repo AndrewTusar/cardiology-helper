@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
+import { AdaptiveSlider } from '@/components/ui/adaptive-slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { DiagnosisResult } from '@/components/diagnosis-result';
@@ -22,16 +23,15 @@ import { cn } from '@/lib/utils';
 
 const steps = [
   { id: '01', title: 'Биометрия', fields: ['gender', 'age', 'height', 'weight', 'waist'] },
-  { id: '02', title: 'Жизненные показатели и жалобы', fields: ['systolic', 'diastolic', 'heartRate', 'complaints', 'anginaClass'] },
-  { id: '03', title: 'Факторы риска и анамнез', fields: ['onTherapy', 'maxSystolic', 'maxDiastolic', 'smoking', 'diabetes', 'diabetesType', 'dyslipidemia', 'totalCholesterol', 'triglycerides', 'ldlCholesterol', 'hdlCholesterol', 'familyHistory', 'miHistory', 'miYear'] },
-  { id: '04', title: 'Осложнения и сопутствующие заболевания', fields: ['lvh', 'creatinine', 'ckdAlbuminuria', 'onDialysis', 'glucoseTolerance', 'ejectionFraction', 'chfStage', 'chfNYHA'] },
+  { id: '02', title: 'Жизненные показатели и жалобы', fields: ['systolic', 'diastolic', 'heartRate', 'complaints', 'anginaClass', 'dyspneaAsEquivalent'] },
+  { id: '03', title: 'Факторы риска и анамнез', fields: ['onTherapy', 'maxSystolic', 'maxDiastolic', 'smoking', 'diabetes', 'diabetesType', 'dyslipidemia', 'totalCholesterol', 'triglycerides', 'ldlCholesterol', 'hdlCholesterol', 'familyHistory', 'miHistory', 'miYear', 'fastingGlucose'] },
+  { id: '04', title: 'Осложнения и сопутствующие заболевания', fields: ['lvh', 'creatinine', 'ckdAlbuminuria', 'onDialysis', 'glucoseTolerance', 'ejectionFraction', 'chfStage', 'chfNYHA', 'atrialFibrillation', 'afForm', 'afEHRA'] },
 ];
 
 const complaintOptions = [
   { id: 'chestPain', label: 'Боль в груди' },
   { id: 'shortnessOfBreath', label: 'Одышка' },
   { id: 'palpitations', label: 'Сердцебиение' },
-  { id: 'dizziness', label: 'Головокружение, головные боли' },
   { id: 'edema', label: 'Отеки лодыжек' },
   { id: 'noComplaints', label: 'Жалоб нет' },
 ];
@@ -48,7 +48,7 @@ const complicationOptions = [
     { id: 'lvh', label: 'ГЛЖ (гипертрофия левого желудочка)' },
     { id: 'glucoseTolerance', label: 'Нарушение толерантности к глюкозе' },
     { id: 'atrialFibrillation', label: 'Фибрилляция предсердий' },
-    { id: 'strokeHistory', label: 'Инсульт/ТИА в анамнезе' },
+    { id: 'strokeHistory', label: 'Перенесенный инсульт (ОНМК)' },
     { id: 'peripheralArteryDisease', label: 'Заболевание периферических артерий (ЗПА)' },
     { id: 'hypertensiveRetinopathy', label: 'Гипертоническая ретинопатия' },
 ];
@@ -84,6 +84,22 @@ const anginaClassOptions = [
     { value: 'IV', label: 'IV ФК' },
 ];
 
+const afFormOptions = [
+    { value: 'paroxysmal', label: 'Пароксизмальная' },
+    { value: 'persistent', label: 'Персистирующая' },
+    { value: 'longStandingPersistent', label: 'Длительно персистирующая' },
+    { value: 'permanent', label: 'Постоянная' },
+    { value: 'firstDetected', label: 'Впервые выявленная' },
+];
+
+const afEhraOptions = [
+    { value: 'I', label: 'I (нет симптомов)' },
+    { value: 'IIa', label: 'IIa (легкие симптомы)' },
+    { value: 'IIb', label: 'IIb (выраженные симптомы)' },
+    { value: 'III', label: 'III (тяжелые симптомы)' },
+    { value: 'IV', label: 'IV (инвалидизирующие симптомы)' },
+];
+
 
 export function DiagnosticWizard() {
   const [currentStep, setCurrentStep] = useState(0);
@@ -100,8 +116,8 @@ export function DiagnosticWizard() {
       systolic: 120,
       diastolic: 80,
       heartRate: 70,
-      maxSystolic: 140,
-      maxDiastolic: 90,
+      maxSystolic: 120,
+      maxDiastolic: 80,
       complaints: [],
       anginaClass: 'none',
       onTherapy: false,
@@ -113,7 +129,7 @@ export function DiagnosticWizard() {
       triglycerides: 1.7,
       ldlCholesterol: 3.0,
       hdlCholesterol: 1.2,
-      fastingGlucose: undefined,
+      fastingGlucose: 5.5,
       hba1c: undefined,
       familyHistory: false,
       miHistory: false,
@@ -124,12 +140,15 @@ export function DiagnosticWizard() {
       onDialysis: false,
       glucoseTolerance: false,
       atrialFibrillation: false,
+      afForm: 'paroxysmal',
+      afEHRA: 'I',
       strokeHistory: false,
       peripheralArteryDisease: false,
       hypertensiveRetinopathy: false,
       ejectionFraction: 55,
       chfStage: 'none',
       chfNYHA: 'none',
+      dyspneaAsEquivalent: false,
     },
   });
 
@@ -141,7 +160,8 @@ export function DiagnosticWizard() {
   const dyslipidemia = watch('dyslipidemia');
   const complaints = watch('complaints');
   const showChfFields = complaints.includes('shortnessOfBreath');
-  const showAnginaClassField = complaints.includes('chestPain');
+  const dyspneaAsEquivalent = watch('dyspneaAsEquivalent');
+  const showAnginaClassField = complaints.includes('chestPain') || (complaints.includes('shortnessOfBreath') && dyspneaAsEquivalent);
   const diabetes = watch('diabetes');
 
   const age = watch('age');
@@ -228,7 +248,7 @@ export function DiagnosticWizard() {
                     <FormItem>
                       <FormLabel className="text-base font-semibold text-slate-900">Возраст: {field.value} лет</FormLabel>
                       <FormControl>
-                        <Slider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={18} max={100} step={1} />
+                        <AdaptiveSlider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={18} max={100} step={1} fastStep={5} slowStep={1} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -240,7 +260,7 @@ export function DiagnosticWizard() {
                     <FormItem>
                       <FormLabel className="text-base font-semibold text-slate-900">Рост: {field.value} см</FormLabel>
                       <FormControl>
-                        <Slider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={140} max={220} step={1} />
+                        <AdaptiveSlider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={140} max={220} step={1} fastStep={5} slowStep={1} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -252,7 +272,7 @@ export function DiagnosticWizard() {
                     <FormItem>
                       <FormLabel className="text-base font-semibold text-slate-900">Вес: {field.value} кг</FormLabel>
                       <FormControl>
-                        <Slider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={40} max={200} step={1} />
+                        <AdaptiveSlider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={40} max={200} step={1} fastStep={5} slowStep={1} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -264,7 +284,7 @@ export function DiagnosticWizard() {
                     <FormItem>
                       <FormLabel className="text-base font-semibold text-slate-900">Объем талии: {field.value} см</FormLabel>
                       <FormControl>
-                        <Slider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={50} max={150} step={1} />
+                        <AdaptiveSlider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={50} max={150} step={1} fastStep={5} slowStep={1} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -287,7 +307,7 @@ export function DiagnosticWizard() {
                     <FormItem>
                       <FormLabel className="text-base font-semibold text-slate-900">Систолическое АД (на момент осмотра): {field.value} мм.рт.ст.</FormLabel>
                       <FormControl>
-                        <Slider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={50} max={250} step={1} />
+                        <AdaptiveSlider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={50} max={250} step={1} fastStep={5} slowStep={1} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -299,7 +319,7 @@ export function DiagnosticWizard() {
                     <FormItem>
                       <FormLabel className="text-base font-semibold text-slate-900">Диастолическое АД (на момент осмотра): {field.value} мм.рт.ст.</FormLabel>
                       <FormControl>
-                        <Slider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={30} max={150} step={1} />
+                        <AdaptiveSlider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={30} max={150} step={1} fastStep={5} slowStep={1} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -311,7 +331,7 @@ export function DiagnosticWizard() {
                     <FormItem>
                       <FormLabel className="text-base font-semibold text-slate-900">Пульс: {field.value} уд/мин</FormLabel>
                       <FormControl>
-                        <Slider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={40} max={180} step={1} />
+                        <AdaptiveSlider onValueChange={(value) => field.onChange(value[0])} value={[field.value]} min={40} max={180} step={1} fastStep={5} slowStep={1} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -326,33 +346,58 @@ export function DiagnosticWizard() {
                                 <FormLabel className="text-base">Жалобы</FormLabel>
                             </div>
                             {complaintOptions.map((item) => (
-                                <FormItem
-                                    key={item.id}
-                                    className="flex flex-row items-start space-x-3 space-y-0"
-                                >
-                                    <FormControl>
-                                        <Checkbox
-                                            checked={field.value?.includes(item.id)}
-                                            onCheckedChange={(checked) => {
-                                                let newComplaints: string[];
-                                                if (checked) {
-                                                    if (item.id === 'noComplaints') {
-                                                        newComplaints = ['noComplaints'];
+                                <Fragment key={item.id}>
+                                    <FormItem
+                                        className="flex flex-row items-start space-x-3 space-y-0"
+                                    >
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value?.includes(item.id)}
+                                                onCheckedChange={(checked) => {
+                                                    let newComplaints: string[];
+                                                    if (checked) {
+                                                        if (item.id === 'noComplaints') {
+                                                            newComplaints = ['noComplaints'];
+                                                        } else {
+                                                            newComplaints = [...(field.value?.filter(c => c !== 'noComplaints') || []), item.id];
+                                                        }
                                                     } else {
-                                                        newComplaints = [...(field.value?.filter(c => c !== 'noComplaints') || []), item.id];
+                                                        newComplaints = field.value?.filter(c => c !== item.id) || [];
                                                     }
-                                                } else {
-                                                    newComplaints = field.value?.filter(c => c !== item.id) || [];
-                                                }
-                                                field.onChange(newComplaints);
-                                            }}
-                                            disabled={item.id !== 'noComplaints' && field.value?.includes('noComplaints')}
+                                                    field.onChange(newComplaints);
+                                                }}
+                                                disabled={item.id !== 'noComplaints' && field.value?.includes('noComplaints')}
+                                            />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                            {item.label}
+                                        </FormLabel>
+                                    </FormItem>
+                                    {item.id === 'shortnessOfBreath' && field.value?.includes('shortnessOfBreath') && (
+                                        <FormField
+                                            control={form.control}
+                                            name="dyspneaAsEquivalent"
+                                            render={({ field: dField }) => (
+                                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 pl-6 pb-2">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={dField.value}
+                                                            onCheckedChange={dField.onChange}
+                                                        />
+                                                    </FormControl>
+                                                    <div className="space-y-1 leading-none">
+                                                        <FormLabel className="text-sm font-medium text-blue-600">
+                                                            Одышка как эквивалент стенокардии
+                                                        </FormLabel>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Одышка возникает при физической нагрузке и проходит в покое.
+                                                        </p>
+                                                    </div>
+                                                </FormItem>
+                                            )}
                                         />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                        {item.label}
-                                    </FormLabel>
-                                </FormItem>
+                                    )}
+                                </Fragment>
                             ))}
                             <FormMessage />
                         </FormItem>
@@ -442,7 +487,7 @@ export function DiagnosticWizard() {
                                     <FormItem>
                                         <FormLabel>Систолическое АД: {field.value} мм.рт.ст.</FormLabel>
                                         <FormControl>
-                                            <Slider onValueChange={(value) => field.onChange(value[0])} value={[field.value || 140]} min={90} max={300} step={1} />
+                                            <AdaptiveSlider onValueChange={(value) => field.onChange(value[0])} value={[field.value || 140]} min={90} max={300} step={1} fastStep={10} slowStep={1} />
                                         </FormControl>
                                     </FormItem>
                                 )}
@@ -454,7 +499,7 @@ export function DiagnosticWizard() {
                                     <FormItem>
                                         <FormLabel>Диастолическое АД: {field.value} мм.рт.ст.</FormLabel>
                                         <FormControl>
-                                            <Slider onValueChange={(value) => field.onChange(value[0])} value={[field.value || 90]} min={60} max={200} step={1} />
+                                            <AdaptiveSlider onValueChange={(value) => field.onChange(value[0])} value={[field.value || 90]} min={60} max={200} step={1} fastStep={10} slowStep={1} />
                                         </FormControl>
                                     </FormItem>
                                 )}
@@ -519,7 +564,7 @@ export function DiagnosticWizard() {
                                         <FormItem>
                                             <FormLabel>Общий холестерин: {field.value?.toFixed(1)}</FormLabel>
                                             <FormControl>
-                                                <Slider onValueChange={(v) => field.onChange(v[0])} value={[field.value || 5.0]} min={1} max={20} step={0.1} />
+                                                <AdaptiveSlider onValueChange={(v) => field.onChange(v[0])} value={[field.value || 5.0]} min={1} max={20} step={0.1} fastStep={1} slowStep={0.1} />
                                             </FormControl>
                                         </FormItem>
                                     )}
@@ -531,7 +576,7 @@ export function DiagnosticWizard() {
                                         <FormItem>
                                             <FormLabel>Триглицериды: {field.value?.toFixed(1)}</FormLabel>
                                             <FormControl>
-                                                <Slider onValueChange={(v) => field.onChange(v[0])} value={[field.value || 1.7]} min={0.1} max={25} step={0.1} />
+                                                <AdaptiveSlider onValueChange={(v) => field.onChange(v[0])} value={[field.value || 1.7]} min={0.1} max={25} step={0.1} fastStep={1} slowStep={0.1} />
                                             </FormControl>
                                         </FormItem>
                                     )}
@@ -543,7 +588,7 @@ export function DiagnosticWizard() {
                                         <FormItem>
                                             <FormLabel>ЛПНП: {field.value?.toFixed(1)}</FormLabel>
                                             <FormControl>
-                                                <Slider onValueChange={(v) => field.onChange(v[0])} value={[field.value || 3.0]} min={0.1} max={15} step={0.1} />
+                                                <AdaptiveSlider onValueChange={(v) => field.onChange(v[0])} value={[field.value || 3.0]} min={0.1} max={15} step={0.1} fastStep={1} slowStep={0.1} />
                                             </FormControl>
                                         </FormItem>
                                     )}
@@ -555,7 +600,7 @@ export function DiagnosticWizard() {
                                         <FormItem>
                                             <FormLabel>ЛПВП: {field.value?.toFixed(1)}</FormLabel>
                                             <FormControl>
-                                                <Slider onValueChange={(v) => field.onChange(v[0])} value={[field.value || 1.2]} min={0.1} max={4} step={0.1} />
+                                                <AdaptiveSlider onValueChange={(v) => field.onChange(v[0])} value={[field.value || 1.2]} min={0.1} max={4} step={0.1} fastStep={0.5} slowStep={0.1} />
                                             </FormControl>
                                         </FormItem>
                                     )}
@@ -587,77 +632,134 @@ export function DiagnosticWizard() {
 
                  <Separator />
                  <FormLabel className="text-base">Лабораторные показатели (если доступны)</FormLabel>
-                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                   <FormField
-                     control={form.control}
-                     name="fastingGlucose"
-                     render={({ field }) => (
-                       <FormItem>
-                         <FormLabel>Глюкоза натощак (ммоль/л)</FormLabel>
-                         <FormControl>
-                           <input
-                             type="number"
-                             step="0.1"
-                             min={1}
-                             max={40}
-                             value={field.value ?? ''}
-                             onChange={(e) =>
-                               field.onChange(e.target.value === '' ? undefined : Number(e.target.value))
-                             }
-                             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                           />
-                         </FormControl>
-                         <FormMessage />
-                       </FormItem>
-                     )}
-                   />
-                   <FormField
-                     control={form.control}
-                     name="hba1c"
-                     render={({ field }) => (
-                       <FormItem>
-                         <FormLabel>HbA1c (%)</FormLabel>
-                         <FormControl>
-                           <input
-                             type="number"
-                             step="0.1"
-                             min={3}
-                             max={20}
-                             value={field.value ?? ''}
-                             onChange={(e) =>
-                               field.onChange(e.target.value === '' ? undefined : Number(e.target.value))
-                             }
-                             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                           />
-                         </FormControl>
-                         <FormMessage />
-                       </FormItem>
-                     )}
-                   />
-                 </div>
-              </section>
+                 <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="fastingGlucose"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Глюкоза натощак: {field.value ? (field.value >= 20 ? '20+' : field.value.toFixed(1)) : '—'} ммоль/л</FormLabel>
+                          <FormControl>
+                            <Slider 
+                              onValueChange={(value) => field.onChange(value[0])} 
+                              value={[field.value || 5.5]} 
+                              min={1} 
+                              max={20} 
+                              step={0.1} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="hba1c"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>HbA1c: {field.value ? (field.value >= 20 ? '20+' : field.value.toFixed(1)) : '—'} (%)</FormLabel>
+                          <FormControl>
+                            <Slider 
+                              onValueChange={(value) => field.onChange(value[0])} 
+                              value={[field.value || 7]} 
+                              min={3} 
+                              max={20} 
+                              step={0.1} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+               </section>
             )}
 
             {currentStep === 3 && (
                  <section className="space-y-4">
                     <FormLabel className="text-base">Осложнения и сопутствующие заболевания</FormLabel>
                     {complicationOptions.map((item) => (
-                        <FormField
-                            key={item.id}
-                            control={form.control}
-                            name={item.id as keyof DiagnosisFormValues}
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                    <FormControl>
-                                        <Checkbox
-                                            checked={field.value as boolean}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">{item.label}</FormLabel>
-                                </FormItem>
+                        <Fragment key={item.id}>
+                            <FormField
+                                control={form.control}
+                                name={item.id as keyof DiagnosisFormValues}
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value as boolean}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">{item.label}</FormLabel>
+                                    </FormItem>
+                                )}
+                            />
+                            {item.id === 'atrialFibrillation' && watch('atrialFibrillation') && (
+                                <div className="space-y-4 pt-2 pl-6 border-l-2 ml-3">
+                                    <FormField
+                                        control={form.control}
+                                        name="afForm"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Форма ФП</FormLabel>
+                                                <Select value={field.value} onValueChange={field.onChange}>
+                                                    <FormControl>
+                                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {afFormOptions.map(option => (
+                                                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="afEHRA"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Класс симптомов EHRA</FormLabel>
+                                                <Select value={field.value} onValueChange={field.onChange}>
+                                                    <FormControl>
+                                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {afEhraOptions.map(option => (
+                                                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
                             )}
-                        />
+                            {item.id === 'strokeHistory' && watch('strokeHistory') && (
+                                <div className="space-y-2 pt-2 pl-6 border-l-2 ml-3">
+                                    <FormField
+                                        control={form.control}
+                                        name="strokeYear"
+                                        render={({ field }) => (
+                                            <FormItem className="pt-2">
+                                                <FormLabel>Год события: {field.value || new Date().getFullYear()}</FormLabel>
+                                                <FormControl>
+                                                    <Slider
+                                                        onValueChange={(value) => field.onChange(value[0])}
+                                                        value={[field.value || new Date().getFullYear()]}
+                                                        min={1950}
+                                                        max={new Date().getFullYear()}
+                                                        step={1}
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                            )}
+                        </Fragment>
                     ))}
                     <Separator />
                     <FormField

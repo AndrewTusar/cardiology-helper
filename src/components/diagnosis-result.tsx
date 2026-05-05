@@ -14,7 +14,7 @@ interface DiagnosisResultProps {
 export function DiagnosisResult({ diagnosis, onReset }: DiagnosisResultProps) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
 
-  const copyText = useMemo(() => diagnosis.fullDiagnosis, [diagnosis.fullDiagnosis]);
+  const copyText = useMemo(() => diagnosis.copyText || diagnosis.fullDiagnosis, [diagnosis.copyText, diagnosis.fullDiagnosis]);
 
   const sections = diagnosis.sections;
 
@@ -80,6 +80,22 @@ export function DiagnosisResult({ diagnosis, onReset }: DiagnosisResultProps) {
                 </div>
               )}
             </div>
+            
+            {diagnosis.recommendations && diagnosis.recommendations.length > 0 && (
+                <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-lg">
+                    <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                        <span className="text-lg">📋</span> Рекомендуемая терапия (группы препаратов)
+                    </h3>
+                    <ul className="space-y-1.5 text-sm text-blue-800 list-disc pl-5">
+                        {diagnosis.recommendations.map((rec, index) => (
+                            <li key={index}>{rec}</li>
+                        ))}
+                    </ul>
+                    <p className="text-[10px] text-blue-600 mt-2 italic">
+                        * Группы препаратов подобраны автоматически на основе КР РФ. Требуется очная консультация врача для подбора дозировок.
+                    </p>
+                </div>
+            )}
 
             <Separator />
 

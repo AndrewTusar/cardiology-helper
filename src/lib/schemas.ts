@@ -16,6 +16,7 @@ export const diagnosisFormSchema = z.object({
   
   complaints: z.array(z.string()),
   anginaClass: z.enum(['none', 'I', 'II', 'III', 'IV']).default('none'),
+  dyspneaAsEquivalent: z.boolean().default(false),
 
   onTherapy: z.boolean(),
 
@@ -44,7 +45,10 @@ export const diagnosisFormSchema = z.object({
 
   // ССЗ и ПОМ (дополнительные уточняющие пункты)
   atrialFibrillation: z.boolean().default(false),
+  afForm: z.enum(['firstDetected', 'paroxysmal', 'persistent', 'longStandingPersistent', 'permanent']).optional().default('paroxysmal'),
+  afEHRA: z.enum(['I', 'IIa', 'IIb', 'III', 'IV']).optional().default('I'),
   strokeHistory: z.boolean().default(false),
+  strokeYear: z.number().optional(),
   peripheralArteryDisease: z.boolean().default(false),
   hypertensiveRetinopathy: z.boolean().default(false),
   
