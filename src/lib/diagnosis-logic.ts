@@ -312,9 +312,21 @@ function getMedicationRecommendations(data: DiagnosisFormValues, risk: string, i
 
 function getRecommendedExaminations(data: DiagnosisFormValues, isIBS: boolean): string[] {
     const exams: string[] = [];
-    const { miHistory, diabetes, creatinine, chfStage, atrialFibrillation, systolic, diastolic } = data;
+    const { miHistory, diabetes, creatinine, chfStage, atrialFibrillation, systolic, diastolic, onTherapy, strokeHistory, peripheralArteryDisease } = data;
 
-    // Базовый кардиологический минимум
+    const isActuallyHealthy = !isIBS && !atrialFibrillation && !strokeHistory && !peripheralArteryDisease && !diabetes && (systolic < 140 && diastolic < 90 && !onTherapy);
+
+    if (isActuallyHealthy) {
+        return [
+            '🌟 Поздравляем! Ваше сердце работает как швейцарские часы!',
+            'Регулярные прогулки на свежем воздухе (не менее 30 минут в день)',
+            'Поддержание здорового режима сна и отдыха',
+            'Ежегодный профилактический осмотр (диспансеризация) для контроля показателей',
+            'Продолжайте в том же духе и оставайтесь здоровыми!'
+        ];
+    }
+
+    // Базовый кардиологический минимум для тех, у кого есть патология или подозрение
     exams.push('ЭКГ (в 12 отведениях)');
     exams.push('Общий анализ крови (ОАК)');
     exams.push('Общий анализ мочи (ОАМ)');
