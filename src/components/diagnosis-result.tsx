@@ -84,15 +84,37 @@ export function DiagnosisResult({ diagnosis, onReset }: DiagnosisResultProps) {
             {diagnosis.recommendations && diagnosis.recommendations.length > 0 && (
                 <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-lg">
                     <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-                        <span className="text-lg">📋</span> Рекомендуемая терапия (группы препаратов)
+                        <span className="text-lg">💊</span> Рекомендуемая терапия (группы препаратов)
                     </h3>
                     <ul className="space-y-1.5 text-sm text-blue-800 list-disc pl-5">
-                        {diagnosis.recommendations.map((rec, index) => (
-                            <li key={index}>{rec}</li>
-                        ))}
+                        {diagnosis.recommendations.map((rec, index) => {
+                            // Simple parser for markdown bold in UI
+                            const parts = rec.split('**');
+                            return (
+                                <li key={index}>
+                                    {parts.map((part, i) => (i % 2 === 1 ? <strong key={i}>{part}</strong> : part))}
+                                </li>
+                            );
+                        })}
                     </ul>
                     <p className="text-[10px] text-blue-600 mt-2 italic">
                         * Группы препаратов подобраны автоматически на основе КР РФ. Требуется очная консультация врача для подбора дозировок.
+                    </p>
+                </div>
+            )}
+
+            {diagnosis.examinations && diagnosis.examinations.length > 0 && (
+                <div className="p-4 bg-green-50/50 border border-green-100 rounded-lg">
+                    <h3 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
+                        <span className="text-lg">🔍</span> Рекомендуемый план обследования
+                    </h3>
+                    <ul className="space-y-1.5 text-sm text-green-800 list-disc pl-5">
+                        {diagnosis.examinations.map((exam, index) => (
+                            <li key={index}>{exam}</li>
+                        ))}
+                    </ul>
+                    <p className="text-[10px] text-green-600 mt-2 italic">
+                        * Перечень исследований является справочным и соответствует диагностическому минимуму согласно КР РФ.
                     </p>
                 </div>
             )}

@@ -11,6 +11,7 @@ export interface DiagnosisResult {
   sections?: DiagnosisSections;
   copyText?: string;
   recommendations: string[];
+  examinations: string[];
 }
 
 export interface DiagnosisSections {
@@ -19,6 +20,7 @@ export interface DiagnosisSections {
   complications: string[];
   comorbidities: string[];
   targets: string[];
+  examinations?: string[];
 }
 
 export interface TargetLevels {
@@ -218,6 +220,10 @@ const buildCopyText = (sections: DiagnosisSections, recommendations: string[]): 
         lines.push('\nРЕКОМЕНДУЕМАЯ ТЕРАПИЯ:');
         recommendations.forEach(r => lines.push(`- ${r}`));
     }
+    if (sections.examinations && sections.examinations.length > 0) {
+        lines.push('\nПЛАН ОБСЛЕДОВАНИЯ:');
+        sections.examinations.forEach(e => lines.push(`- ${e}`));
+    }
     return lines.join('\n');
 };
 
@@ -302,6 +308,50 @@ function getMedicationRecommendations(data: DiagnosisFormValues, risk: string, i
     }
 
     return recs;
+}
+
+function getRecommendedExaminations(data: DiagnosisFormValues, isIBS: boolean): string[] {
+    const exams: string[] = [];
+    const { miHistory, diabetes, creatinine, chfStage, atrialFibrillation, systolic, diastolic } = data;
+
+    // Базовый кардиологический минимум
+    exams.push('ЭКГ (в 12 отведениях)');
+    exams.push('Общий анализ крови (ОАК)');
+    exams.push('Общий анализ мочи (ОАМ)');
+    exams.push('Биохимический анализ крови (глюкоза, креатинин, липидный профиль — ОХ, ЛПНП, ТГ)');
+
+    if (systolic >= 140 || diastolic >= 90 || data.onTherapy) {
+        exams.push('ЭхоКГ (для выявления ГЛЖ и оценки ФВ)');
+        if (systolic >= 180 || diastolic >= 110) exams.push('Осмотр глазного дна (офтальмоскопия)');
+    }
+
+    if (isIBS) {
+        if (!miHistory) exams.push('Нагрузочная проба (Тредмил-тест или стресс-ЭхоКГ)');
+        exams.push('ЭхоКГ (обязательно при подозрении на ИБС)');
+        if (data.complaints.includes('palpitations')) exams.push('Суточное (Холтеровское) мониторирование ЭКГ');
+    }
+
+    if (atrialFibrillation) {
+        exams.push('УЗИ щитовидной железы + ТТГ');
+        exams.push('Коагулограмма (МНО/АЧТВ) — перед началом терапии');
+        exams.push('ЭхоКГ (оценка размеров левого предсердия)');
+    }
+
+    if (diabetes) {
+        exams.push('Анализ на гликированный гемоглобин (HbA1c)');
+        exams.push('Определение альбумина в моче (микроальбуминурия)');
+    }
+
+    if (chfStage && chfStage !== 'none') {
+        exams.push('Определение уровня NT-proBNP в крови');
+        exams.push('Рентгенография органов грудной клетки');
+    }
+
+    if (creatinine && creatinine > 115) {
+        exams.push('УЗИ почек и почечных артерий');
+    }
+
+    return [...new Set(exams)]; // Убираем дубликаты
 }
 
 export function generateDiagnosis(data: DiagnosisFormValues): DiagnosisResult {
@@ -401,6 +451,7 @@ export function generateDiagnosis(data: DiagnosisFormValues): DiagnosisResult {
     if (targets) sections.targets.push(sentence(formatTargetsForDiagnosis(targets)));
 
     const recommendations = getMedicationRecommendations(data, risk, isIBS, gfr);
+    const examinations = getRecommendedExaminations(data, isIBS);
 
     return {
         fullDiagnosis: [ ...sections.primary, ...sections.background, ...sections.complications, ...sections.comorbidities, ...sections.targets ].filter(Boolean).join(' '),
@@ -410,8 +461,9 @@ export function generateDiagnosis(data: DiagnosisFormValues): DiagnosisResult {
         risk: isHypertensive ? risk : 'Нет',
         comorbidities: sections.comorbidities,
         targets,
-        sections,
-        copyText: buildCopyText(sections, recommendations),
+        sections: { ...sections, examinations },
+        copyText: buildCopyText({ ...sections, examinations }, recommendations),
         recommendations,
+        examinations,
     };
 }
